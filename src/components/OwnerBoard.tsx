@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { Player, Team, PlayerRole } from '../types';
 import { dbApi } from '../utils/api';
-import { compressImageToDataUrl, signInMasterOwnerWithGoogle } from '../firebase';
+import {
+  compressImageToDataUrl,
+  signInMasterOwnerWithGoogle,
+  REQUIRED_FIREBASE_ENV_VARS
+} from '../firebase';
 import { TEAM_DEFAULT_LOGOS, CRICKET_PLAYER_PRESETS } from '../utils/assets';
 import { TeamBadge } from './TeamBadge';
 import { PlayerAvatar } from './PlayerAvatar';
@@ -1197,6 +1201,39 @@ export const OwnerBoard: React.FC<OwnerBoardProps> = ({
                       <span>Reset to Factory Defaults</span>
                     </button>
                   </div>
+                </div>
+
+                {/* FIREBASE & GITHUB ENVIRONMENT VARIABLES */}
+                <div className="p-5 rounded-2xl bg-[#081630] border border-emerald-400/40 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-5 h-5 text-emerald-400" />
+                      <h4 className="font-score font-bold text-base text-white">
+                        FIREBASE & GITHUB ENVIRONMENT VARIABLES (.env)
+                      </h4>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const envText = Object.entries(REQUIRED_FIREBASE_ENV_VARS)
+                          .map(([k, v]) => `${k}="${v}"`)
+                          .join('\n');
+                        navigator.clipboard?.writeText(envText);
+                        showNotification('All required Firebase environment variables copied to clipboard!');
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-score font-bold uppercase text-xs cursor-pointer"
+                    >
+                      Copy All .env Variables
+                    </button>
+                  </div>
+                  <p className="text-blue-200 leading-relaxed">
+                    Use these environment variables when deploying your GitHub repository to Vercel, Netlify, Render, or GitHub Actions. They are also pre-configured with automatic fallback in <code className="text-emerald-300">firebase-applet-config.json</code> and <code className="text-emerald-300">.env.example</code>.
+                  </p>
+                  <pre className="p-3.5 rounded-xl bg-[#040b18] border border-blue-500/30 text-emerald-300 font-mono text-[11px] overflow-x-auto select-all leading-relaxed">
+                    {Object.entries(REQUIRED_FIREBASE_ENV_VARS)
+                      .map(([k, v]) => `${k}="${v}"`)
+                      .join('\n')}
+                  </pre>
                 </div>
               </div>
             )}

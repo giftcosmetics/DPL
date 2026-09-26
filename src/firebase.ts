@@ -15,10 +15,35 @@ import {
   deleteField
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
+import { OWNER_UPLOADED_PHOTOS } from './data/uploadedPhotos';
 import { Player, PlayerRole, Team } from './types';
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+const env = (import.meta as any).env || {};
+
+export const resolvedFirebaseConfig = {
+  apiKey: env.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey,
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfig.authDomain,
+  projectId: env.VITE_FIREBASE_PROJECT_ID || firebaseConfig.projectId,
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfig.storageBucket,
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfig.messagingSenderId,
+  appId: env.VITE_FIREBASE_APP_ID || firebaseConfig.appId,
+  firestoreDatabaseId: env.VITE_FIREBASE_DATABASE_ID || firebaseConfig.firestoreDatabaseId,
+  oAuthClientId: env.VITE_FIREBASE_OAUTH_CLIENT_ID || firebaseConfig.oAuthClientId,
+};
+
+export const REQUIRED_FIREBASE_ENV_VARS: Record<string, string> = {
+  VITE_FIREBASE_API_KEY: firebaseConfig.apiKey,
+  VITE_FIREBASE_AUTH_DOMAIN: firebaseConfig.authDomain,
+  VITE_FIREBASE_PROJECT_ID: firebaseConfig.projectId,
+  VITE_FIREBASE_STORAGE_BUCKET: firebaseConfig.storageBucket,
+  VITE_FIREBASE_MESSAGING_SENDER_ID: firebaseConfig.messagingSenderId,
+  VITE_FIREBASE_APP_ID: firebaseConfig.appId,
+  VITE_FIREBASE_DATABASE_ID: firebaseConfig.firestoreDatabaseId,
+  VITE_FIREBASE_OAUTH_CLIENT_ID: firebaseConfig.oAuthClientId || '',
+};
+
+const app = initializeApp(resolvedFirebaseConfig);
+export const db = getFirestore(app, resolvedFirebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
@@ -212,8 +237,13 @@ export function playerToFirestoreDoc(
     ownerKey: (ownerKey || 'Priyam01032008@').slice(0, 128),
   };
 
-  if (player.photo && typeof player.photo === 'string' && player.photo.length <= 895000) {
-    docData.photo = player.photo;
+  const resolvedPhoto =
+    player.photo && player.photo.startsWith('/uploads/') && OWNER_UPLOADED_PHOTOS[safeId]
+      ? OWNER_UPLOADED_PHOTOS[safeId]
+      : player.photo || OWNER_UPLOADED_PHOTOS[safeId];
+
+  if (resolvedPhoto && typeof resolvedPhoto === 'string' && resolvedPhoto.length <= 895000) {
+    docData.photo = resolvedPhoto;
   }
   if (typeof player.soldPrice === 'number' && player.soldPrice >= 0) {
     docData.soldPrice = Math.min(10000000, Math.round(player.soldPrice));
@@ -226,8 +256,15 @@ export function playerToFirestoreDoc(
 }
 
 export function firestoreDocToPlayer(data: Record<string, any>): Player {
+  const pid = String(data.id || '');
+  const rawPhoto = typeof data.photo === 'string' && data.photo.trim() ? data.photo.trim() : undefined;
+  const resolvedPhoto =
+    (!rawPhoto || rawPhoto.startsWith('/uploads/')) && OWNER_UPLOADED_PHOTOS[pid]
+      ? OWNER_UPLOADED_PHOTOS[pid]
+      : rawPhoto;
+
   return {
-    id: String(data.id || ''),
+    id: pid,
     name: String(data.name || 'Player'),
     role: VALID_ROLES.includes(data.role) ? data.role : 'Batter',
     nationality: String(data.nationality || 'Indian'),
@@ -236,7 +273,7 @@ export function firestoreDocToPlayer(data: Record<string, any>): Player {
     basePrice: Number(data.basePrice) || 1000,
     battingStyle: String(data.battingStyle || 'Right-hand bat'),
     bowlingStyle: String(data.bowlingStyle || ''),
-    photo: typeof data.photo === 'string' && data.photo.trim() ? data.photo : undefined,
+    photo: resolvedPhoto,
     status:
       data.status === 'sold' || data.status === 'unsold' ? data.status : 'available',
     soldPrice: typeof data.soldPrice === 'number' ? data.soldPrice : undefined,
@@ -507,7 +544,19 @@ export async function fetchOrSeedFirestore(
       }
       loadedPlayers = fallbackPlayers;
     } else {
-      loadedPlayers = playersSnap.docs.map((d) => firestoreDocToPlayer(d.data()));
+      loadedPlayers = [];
+      for (const d of playersSnap.docs) {
+        const rawData = d.data();
+        const parsed = firestoreDocToPlayer(rawData);
+        loadedPlayers.push(parsed);
+        if (
+          parsed.photo &&
+          parsed.photo.startsWith('data:image/') &&
+          (!rawData.photo || String(rawData.photo).startsWith('/uploads/'))
+        ) {
+          savePlayerToFirestore(parsed, 'Priyam01032008@').catch(() => {});
+        }
+      }
     }
 
     let loadedTeams: Team[] = [];

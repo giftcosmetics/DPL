@@ -1,5 +1,6 @@
 import { Team, Player, AuctionSettings } from '../types';
 import { TEAM_DEFAULT_LOGOS } from '../utils/assets';
+import { OWNER_UPLOADED_PHOTOS } from './uploadedPhotos';
 
 export const INITIAL_TEAMS: Team[] = [
   {
@@ -106,7 +107,7 @@ export const INITIAL_PLAYERS: Player[] = [
     basePrice: 2000,
     battingStyle: 'Right-hand bat',
     bowlingStyle: '',
-    photo: '/uploads/player_ply_1790400594970_57c03eaa5e1a.png',
+    photo: OWNER_UPLOADED_PHOTOS.ply_1790400594970,
     stats: {
       matches: 25,
       runs: 650,
@@ -145,7 +146,7 @@ export const INITIAL_PLAYERS: Player[] = [
     basePrice: 2000,
     battingStyle: 'Right-hand bat',
     bowlingStyle: 'Right-arm fast-medium',
-    photo: '/uploads/player_ply_01_943ee440d03c.jpg',
+    photo: OWNER_UPLOADED_PHOTOS.ply_01,
     stats: {
       matches: 10,
       runs: 300,
